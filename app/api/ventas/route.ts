@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { agregarVenta, obtenerVentas, eliminarVenta } from '@/lib/google-sheets'
+import { agregarVenta, obtenerVentas, eliminarVenta } from '@/lib/database'
 import { calcularVenta } from '@/lib/calculos'
 
 export async function POST(request: Request) {

@@ -8,7 +8,7 @@ export function useConfigSheets() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Cargar configuración desde Google Sheets
+  // Cargar configuración desde Supabase
   const loadConfig = useCallback(async () => {
     try {
       const response = await fetch('/api/config')
@@ -27,14 +27,14 @@ export function useConfigSheets() {
     }
   }, [])
 
-  // Guardar configuración en Google Sheets
+  // Guardar configuración en Supabase
   const saveConfig = useCallback(async (newConfig: Partial<ConfigNegocio>) => {
     const updatedConfig = { ...config, ...newConfig }
     
     // Actualizar estado local inmediatamente
     setConfigState(updatedConfig)
     
-    // Guardar en Google Sheets en background
+    // Guardar en Supabase en background
     try {
       setIsLoading(true)
       

@@ -74,9 +74,9 @@ export function ResumenSemanal({ config }: Props) {
   return (
     <div className="space-y-4">
       {usandoEjemplo && (
-        <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-800">
+        <div className="flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-blue-800">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <p className="text-xs">Datos de ejemplo. Conecta Google Sheets para ver datos reales.</p>
+          <p className="text-xs">Datos de ejemplo. Configura Supabase para ver datos reales.</p>
         </div>
       )}
 
