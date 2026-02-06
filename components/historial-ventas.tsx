@@ -27,7 +27,6 @@ import {
   Trash2,
   Truck,
   User,
-  X,
 } from 'lucide-react'
 
 interface Props {
@@ -203,8 +202,12 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
   const resumenFiltrado = useMemo(() => {
     const totalIngreso = ventasFiltradas.reduce((s, v) => s + v.ingresoVendedor, 0)
     const totalSandwiches = ventasFiltradas.reduce((s, v) => s + v.cantidad, 0)
-    const totalComisionMiguel = ventasFiltradas.reduce((s, v) => s + v.comisionMiguel, 0)
-    const totalComisionJeronimo = ventasFiltradas.reduce((s, v) => s + v.comisionJeronimo, 0)
+    const totalDomicilioSocios = ventasFiltradas.reduce((s, v) => s + v.domicilioSocios, 0)
+    const parteDomicilioTotal = totalDomicilioSocios / 3
+    const totalComisionMiguelBruta = ventasFiltradas.reduce((s, v) => s + v.comisionMiguel, 0)
+    const totalComisionJeronimoBruta = ventasFiltradas.reduce((s, v) => s + v.comisionJeronimo, 0)
+    const totalComisionMiguel = totalComisionMiguelBruta - parteDomicilioTotal
+    const totalComisionJeronimo = totalComisionJeronimoBruta - parteDomicilioTotal
     const totalGananciaOp = ventasFiltradas.reduce((s, v) => s + v.gananciaOperador, 0)
     return {
       cantidad: ventasFiltradas.length,
@@ -354,18 +357,25 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                 <div className="flex items-stretch">
                   {/* Info principal */}
                   <div className="flex-1 min-w-0 p-3 space-y-2">
-                    {/* Fila 1: badges comisiones en un renglón completo */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="rounded bg-chart-1/10 px-1.5 py-0.5 text-[10px] font-medium text-chart-1">
-                        {config.nombreSocio2}: {formatCurrency(venta.comisionMiguel)}
-                      </span>
-                      <span className="rounded bg-chart-2/10 px-1.5 py-0.5 text-[10px] font-medium text-chart-2">
-                        {config.nombreSocio3}: {formatCurrency(venta.comisionJeronimo)}
-                      </span>
-                      <span className="rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-800 dark:text-yellow-200">
-                        {config.nombreSocio1}: {formatCurrency(venta.gananciaOperador)}
-                      </span>
-                    </div>
+                    {/* Fila 1: badges comisiones en un renglón completo (menos domicilio 1/3 cada uno) */}
+                    {(() => {
+                      const parteDomicilio = venta.domicilioSocios / 3
+                      const netoMiguel = venta.comisionMiguel - parteDomicilio
+                      const netoJeronimo = venta.comisionJeronimo - parteDomicilio
+                      return (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="rounded bg-chart-1/10 px-1.5 py-0.5 text-[10px] font-medium text-chart-1">
+                            {config.nombreSocio2}: {formatCurrency(netoMiguel)}
+                          </span>
+                          <span className="rounded bg-chart-2/10 px-1.5 py-0.5 text-[10px] font-medium text-chart-2">
+                            {config.nombreSocio3}: {formatCurrency(netoJeronimo)}
+                          </span>
+                          <span className="rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-800 dark:text-yellow-200">
+                            {config.nombreSocio1}: {formatCurrency(venta.gananciaOperador)}
+                          </span>
+                        </div>
+                      )
+                    })()}
                     {/* Fila 2: nombre + total del pedido */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
@@ -379,7 +389,7 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                       </p>
                     </div>
 
-                    {/* Fila 2: fecha, cantidad, domicilio (valor + editar) */}
+                    {/* Fila 3: fecha, cantidad, domicilio (valor + editar) + acciones */}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -405,41 +415,17 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                           Editar valor de domicilio
                         </Button>
                       </span>
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmando(venta.id)}
+                          className="flex items-center justify-center rounded-full px-2 py-1 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Boton anular */}
-                  {confirmando === venta.id ? (
-                    <div className="flex flex-col border-l-2 border-destructive/20 bg-destructive/5">
-                      <button
-                        type="button"
-                        onClick={() => handleAnular(venta.id)}
-                        disabled={anulando === venta.id}
-                        className="flex-1 flex items-center justify-center px-4 text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        {anulando === venta.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmando(null)}
-                        className="flex-1 flex items-center justify-center px-4 border-t border-destructive/20 text-muted-foreground hover:bg-muted transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmando(venta.id)}
-                      className="flex items-center justify-center px-4 border-l-2 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -484,6 +470,40 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                 </>
               ) : (
                 'Guardar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal confirmación de anulación */}
+      <Dialog open={!!confirmando} onOpenChange={(open) => !open && setConfirmando(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Anular esta venta?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              Esta acción <span className="font-semibold text-destructive">no se puede deshacer</span>. 
+              Se eliminará el registro de la venta del historial.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmando(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmando && handleAnular(confirmando)}
+              disabled={!!anulando}
+            >
+              {anulando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Anulando...
+                </>
+              ) : (
+                'Sí, anular venta'
               )}
             </Button>
           </DialogFooter>
