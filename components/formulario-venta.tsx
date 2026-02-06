@@ -118,9 +118,25 @@ export function FormularioVenta({ config, vendedores, onVentaRegistrada }: Props
               </Button>
             </div>
 
-            <div className="flex h-14 min-w-[4.5rem] items-center justify-center rounded-xl bg-primary/10 px-3">
-              <span className="text-2xl font-bold text-primary">{cantidad}</span>
-            </div>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={cantidad || ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '') {
+                  setCantidad(0)
+                  return
+                }
+                const n = Number.parseInt(v, 10)
+                if (!Number.isNaN(n)) setCantidad(Math.max(1, n))
+              }}
+              onBlur={(e) => {
+                if (cantidad < 1) setCantidad(1)
+              }}
+              className="h-14 w-20 rounded-xl border-2 border-primary/20 bg-primary/10 px-2 text-center text-2xl font-bold text-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
 
             <div className="flex gap-1">
               <Button
@@ -177,7 +193,7 @@ export function FormularioVenta({ config, vendedores, onVentaRegistrada }: Props
           </div>
           <div className="text-left">
             <p className="text-base font-semibold">Incluye domicilio</p>
-            <p className="text-sm text-muted-foreground">El valor se define de el historial</p>
+            <p className="text-sm text-muted-foreground">El valor se define desde el historial</p>
           </div>
         </div>
         <Switch 

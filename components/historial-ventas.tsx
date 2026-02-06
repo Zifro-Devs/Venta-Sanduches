@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -94,13 +93,17 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
   const [fechaHasta, setFechaHasta] = useState(() => toDateInputValue(hoy))
   const [filtroVendedorId, setFiltroVendedorId] = useState<string>('')
 
+  const [appliedFechaDesde, setAppliedFechaDesde] = useState(() => toDateInputValue(hace30))
+  const [appliedFechaHasta, setAppliedFechaHasta] = useState(() => toDateInputValue(hoy))
+  const [appliedFiltroVendedorId, setAppliedFiltroVendedorId] = useState<string>('')
+
   const fetchVentas = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (fechaDesde) params.set('fechaDesde', fechaDesde)
-      if (fechaHasta) params.set('fechaHasta', fechaHasta)
-      if (filtroVendedorId) params.set('vendedorId', filtroVendedorId)
+      if (appliedFechaDesde) params.set('fechaDesde', appliedFechaDesde)
+      if (appliedFechaHasta) params.set('fechaHasta', appliedFechaHasta)
+      if (appliedFiltroVendedorId) params.set('vendedorId', appliedFiltroVendedorId)
       const url = params.toString() ? `/api/ventas?${params.toString()}` : '/api/ventas'
       const response = await fetch(url)
       const result = await response.json()
@@ -118,11 +121,17 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [fechaDesde, fechaHasta, filtroVendedorId])
+  }, [appliedFechaDesde, appliedFechaHasta, appliedFiltroVendedorId])
 
   useEffect(() => {
     fetchVentas()
   }, [fetchVentas, refreshKey])
+
+  const aplicarFiltros = () => {
+    setAppliedFechaDesde(fechaDesde)
+    setAppliedFechaHasta(fechaHasta)
+    setAppliedFiltroVendedorId(filtroVendedorId)
+  }
 
   const handleGuardarDomicilio = async () => {
     if (!editingDomicilio) return
@@ -199,28 +208,8 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
 
   const ventasFiltradas = ventas
 
-  const resumenFiltrado = useMemo(() => {
-    const totalIngreso = ventasFiltradas.reduce((s, v) => s + v.ingresoVendedor, 0)
-    const totalSandwiches = ventasFiltradas.reduce((s, v) => s + v.cantidad, 0)
-    const totalDomicilioSocios = ventasFiltradas.reduce((s, v) => s + v.domicilioSocios, 0)
-    const parteDomicilioTotal = totalDomicilioSocios / 3
-    const totalComisionMiguelBruta = ventasFiltradas.reduce((s, v) => s + v.comisionMiguel, 0)
-    const totalComisionJeronimoBruta = ventasFiltradas.reduce((s, v) => s + v.comisionJeronimo, 0)
-    const totalComisionMiguel = totalComisionMiguelBruta - parteDomicilioTotal
-    const totalComisionJeronimo = totalComisionJeronimoBruta - parteDomicilioTotal
-    const totalGananciaOp = ventasFiltradas.reduce((s, v) => s + v.gananciaOperador, 0)
-    return {
-      cantidad: ventasFiltradas.length,
-      totalIngreso,
-      totalSandwiches,
-      totalComisionMiguel,
-      totalComisionJeronimo,
-      totalGananciaOp,
-    }
-  }, [ventasFiltradas])
-
-  const hayFiltrosActivos = fechaDesde || fechaHasta || filtroVendedorId
-  const nombreVendedorFiltro = filtroVendedorId ? vendedores.find((v) => v.id === filtroVendedorId)?.nombre : null
+  const hayFiltrosActivos = appliedFechaDesde || appliedFechaHasta || appliedFiltroVendedorId
+  const nombreVendedorFiltro = appliedFiltroVendedorId ? vendedores.find((v) => v.id === appliedFiltroVendedorId)?.nombre : null
 
   if (loading) {
     return (
@@ -270,66 +259,56 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs flex items-center gap-1">
-                <User className="h-3.5 w-3.5" />
-                Vendedor
-              </Label>
-              <select
-                value={filtroVendedorId}
-                onChange={(e) => setFiltroVendedorId(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <div className="space-y-1.5 sm:col-span-2 flex flex-col sm:flex-row sm:items-end gap-2">
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" />
+                  Vendedor
+                </Label>
+                <select
+                  value={filtroVendedorId}
+                  onChange={(e) => setFiltroVendedorId(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Todos los vendedores</option>
+                  {vendedores.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                type="button"
+                onClick={aplicarFiltros}
+                className="shrink-0 gap-2 h-10"
               >
-                <option value="">Todos los vendedores</option>
-                {vendedores.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.nombre}
-                  </option>
-                ))}
-              </select>
+                <Filter className="h-4 w-4" />
+                Aplicar filtros
+              </Button>
             </div>
           </div>
+          {hayFiltrosActivos && (
+            <div className="border-t border-border/60 pt-2 mt-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Filtros aplicados</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {(appliedFechaDesde || appliedFechaHasta) && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {appliedFechaDesde && appliedFechaHasta ? `${appliedFechaDesde} → ${appliedFechaHasta}` : appliedFechaDesde || appliedFechaHasta}
+                  </span>
+                )}
+                {nombreVendedorFiltro && (
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {nombreVendedorFiltro}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Badges resumen filtrado */}
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary" className="gap-1">
-          <Package className="h-3 w-3" />
-          {resumenFiltrado.cantidad} venta{resumenFiltrado.cantidad !== 1 ? 's' : ''}
-        </Badge>
-        <Badge variant="secondary" className="gap-1">
-          {formatCurrency(resumenFiltrado.totalIngreso)} total
-        </Badge>
-        <Badge variant="outline" className="gap-1">
-          {resumenFiltrado.totalSandwiches} sandwich{resumenFiltrado.totalSandwiches !== 1 ? 'es' : ''}
-        </Badge>
-        <Badge variant="outline" className="gap-1 bg-chart-1/5 text-chart-1 border-chart-1/30">
-          {config.nombreSocio2}: {formatCurrency(resumenFiltrado.totalComisionMiguel)}
-        </Badge>
-        <Badge variant="outline" className="gap-1 bg-chart-2/5 text-chart-2 border-chart-2/30">
-          {config.nombreSocio3}: {formatCurrency(resumenFiltrado.totalComisionJeronimo)}
-        </Badge>
-        <Badge variant="outline" className="gap-1 bg-yellow-500/10 text-yellow-800 dark:text-yellow-200 border-yellow-500/30">
-          {config.nombreSocio1}: {formatCurrency(resumenFiltrado.totalGananciaOp)}
-        </Badge>
-        {hayFiltrosActivos && (
-          <>
-            {(fechaDesde || fechaHasta) && (
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {fechaDesde && fechaHasta ? `${fechaDesde} → ${fechaHasta}` : fechaDesde || fechaHasta}
-              </Badge>
-            )}
-            {nombreVendedorFiltro && (
-              <Badge variant="outline" className="gap-1">
-                <User className="h-3 w-3" />
-                {nombreVendedorFiltro}
-              </Badge>
-            )}
-          </>
-        )}
-      </div>
 
       {usandoEjemplo && (
         <div className="flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-blue-800">
@@ -389,8 +368,8 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                       </p>
                     </div>
 
-                    {/* Fila 3: fecha, cantidad, domicilio (valor + editar) + acciones */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {/* Fila 3: fecha y cantidad */}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {formatFecha(venta.fecha)}
@@ -399,31 +378,33 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
                         <Package className="h-3 w-3" />
                         {venta.cantidad} ud.
                       </span>
-                      <span className="flex items-center gap-1.5">
+                    </div>
+                    {/* Fila 4: domicilio, editar domicilio y caneca en el mismo renglón */}
+                    <div className="flex flex-nowrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground min-w-0">
+                      <span className="flex items-center gap-1.5 shrink-0">
                         <Truck className="h-3 w-3" />
                         <span className="font-medium text-foreground">{formatCurrency(venta.domicilioTotal)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-primary hover:text-primary"
-                          onClick={() => {
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-primary hover:text-primary shrink-0 whitespace-nowrap"
+                        onClick={() => {
                           setErrorDomicilio(null)
                           setEditingDomicilio({ ventaId: venta.id, valor: String(venta.domicilioTotal) })
                         }}
-                        >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          Editar valor de domicilio
-                        </Button>
-                      </span>
-                      <div className="ml-auto flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmando(venta.id)}
-                          className="flex items-center justify-center rounded-full px-2 py-1 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                      >
+                        <Pencil className="h-3 w-3 shrink-0 mr-1" />
+                        <span className="hidden sm:inline">Editar valor de domicilio</span>
+                        <span className="sm:hidden">Editar domicilio</span>
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmando(venta.id)}
+                        className="ml-auto flex shrink-0 items-center justify-center rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
                 </div>

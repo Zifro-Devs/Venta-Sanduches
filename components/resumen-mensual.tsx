@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/calculos'
@@ -37,6 +38,12 @@ export function ResumenMensual({ config }: Props) {
   })
   const [fechaHasta, setFechaHasta] = useState(() => toDateInputValue(new Date()))
 
+  const [appliedFechaDesde, setAppliedFechaDesde] = useState(() => {
+    const d = new Date()
+    return toDateInputValue(new Date(d.getFullYear(), d.getMonth(), 1))
+  })
+  const [appliedFechaHasta, setAppliedFechaHasta] = useState(() => toDateInputValue(new Date()))
+
   const fetchResumen = useCallback(async (mes?: string) => {
     setLoading(true)
     try {
@@ -47,8 +54,8 @@ export function ResumenMensual({ config }: Props) {
         url = `${appsScriptUrl}?action=resumenMensual&mes=${encodeURIComponent(mes)}`
       } else {
         const params = new URLSearchParams({ tipo: 'mensual' })
-        if (fechaDesde) params.set('fechaDesde', fechaDesde)
-        if (fechaHasta) params.set('fechaHasta', fechaHasta)
+        if (appliedFechaDesde) params.set('fechaDesde', appliedFechaDesde)
+        if (appliedFechaHasta) params.set('fechaHasta', appliedFechaHasta)
         url = `/api/resumenes?${params.toString()}`
       }
 
@@ -63,7 +70,7 @@ export function ResumenMensual({ config }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [fechaDesde, fechaHasta])
+  }, [appliedFechaDesde, appliedFechaHasta])
 
   useEffect(() => {
     if (mesSeleccionado) {
@@ -83,7 +90,12 @@ export function ResumenMensual({ config }: Props) {
     } else {
       fetchResumen()
     }
-  }, [mesSeleccionado, fechaDesde, fechaHasta])
+  }, [mesSeleccionado, appliedFechaDesde, appliedFechaHasta, fetchResumen])
+
+  const aplicarFiltros = () => {
+    setAppliedFechaDesde(fechaDesde)
+    setAppliedFechaHasta(fechaHasta)
+  }
 
   const handleMesChange = (mes: string) => {
     setMesSeleccionado(mes)
@@ -116,25 +128,35 @@ export function ResumenMensual({ config }: Props) {
             <Filter className="h-4 w-4" />
             Rango de fechas
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Desde</Label>
-              <input
-                type="date"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 flex-1 min-w-0">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Desde</Label>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Hasta</Label>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Hasta</Label>
-              <input
-                type="date"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
+            <Button
+              type="button"
+              onClick={aplicarFiltros}
+              className="shrink-0 gap-2 h-10"
+            >
+              <Filter className="h-4 w-4" />
+              Aplicar filtros
+            </Button>
           </div>
         </CardContent>
       </Card>
