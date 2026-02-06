@@ -9,7 +9,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface VentaDB {
   id: string
   fecha: string
-  vendedor: string
+  vendedor_id: string
   cantidad: number
   costo_distribucion: number
   ingreso_vendedor: number
@@ -20,6 +20,17 @@ export interface VentaDB {
   domicilio_socios: number
   ganancia_operador: number
   created_at?: string
+  vendedores?: { nombre: string } | null
+}
+
+export interface VendedorDB {
+  id: string
+  nombre: string
+  universidad_id: string
+  telefono: string
+  created_at?: string
+  updated_at?: string
+  universidades?: { nombre: string } | null
 }
 
 export interface ConfiguracionDB {
@@ -32,7 +43,6 @@ export interface ConfiguracionDB {
   limite_comision_miguel: number
   comision_jeronimo_por_unidad: number
   domicilio_total: number
-  vendedores: string[]
   nombre_socio1: string
   nombre_socio2: string
   nombre_socio3: string

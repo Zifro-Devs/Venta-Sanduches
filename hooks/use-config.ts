@@ -39,26 +39,14 @@ export function useConfig() {
     try {
       localStorage.removeItem(CONFIG_KEY)
     } catch {
-      // Ignore storage errors
+      // Ignore
     }
   }, [])
-
-  const addVendedor = useCallback((nombre: string) => {
-    if (nombre.trim() && !config.vendedores.includes(nombre.trim())) {
-      setConfig({ vendedores: [...config.vendedores, nombre.trim()] })
-    }
-  }, [config.vendedores, setConfig])
-
-  const removeVendedor = useCallback((nombre: string) => {
-    setConfig({ vendedores: config.vendedores.filter((v) => v !== nombre) })
-  }, [config.vendedores, setConfig])
 
   return {
     config,
     setConfig,
     resetConfig,
-    addVendedor,
-    removeVendedor,
     isLoaded,
   }
 }

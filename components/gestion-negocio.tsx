@@ -5,19 +5,29 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { type ConfigNegocio } from '@/lib/types'
+import { type ConfigNegocio, type Vendedor, type VendedorInfo, UNIVERSIDADES } from '@/lib/types'
 import { formatCurrency } from '@/lib/calculos'
-import { Check, Plus, Trash2, User, DollarSign, Truck, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Check, Plus, Trash2, User, DollarSign, Truck, Users, ChevronDown, ChevronUp, Phone, GraduationCap } from 'lucide-react'
 
 interface Props {
   config: ConfigNegocio
+  vendedores: Vendedor[]
   onConfigChange: (config: Partial<ConfigNegocio>) => void
-  onAddVendedor: (nombre: string) => void
-  onRemoveVendedor: (nombre: string) => void
+  onAddVendedor: (vendedor: VendedorInfo) => void
+  onRemoveVendedor: (id: string) => void
 }
 
-export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemoveVendedor }: Props) {
+export function GestionNegocio({ config, vendedores, onConfigChange, onAddVendedor, onRemoveVendedor }: Props) {
   const [nuevoVendedor, setNuevoVendedor] = useState('')
+  const [nuevaUniversidad, setNuevaUniversidad] = useState<VendedorInfo['universidad']>('U Nacional')
+  const [nuevoTelefono, setNuevoTelefono] = useState('')
   const [showPrecios, setShowPrecios] = useState(false)
   const [showComisiones, setShowComisiones] = useState(false)
   const [saved, setSaved] = useState<string | null>(null)
@@ -27,8 +37,14 @@ export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemove
 
   const handleAddVendedor = () => {
     if (nuevoVendedor.trim()) {
-      onAddVendedor(nuevoVendedor.trim())
+      onAddVendedor({
+        nombre: nuevoVendedor.trim(),
+        universidad: nuevaUniversidad,
+        telefono: nuevoTelefono.trim(),
+      })
       setNuevoVendedor('')
+      setNuevaUniversidad('U Nacional')
+      setNuevoTelefono('')
       showSaved('vendedor')
     }
   }
@@ -112,16 +128,16 @@ export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemove
         </CardHeader>
         <CardContent className="p-4 space-y-3">
           <div className="flex flex-wrap gap-2">
-            {config.vendedores.map((v) => (
+            {vendedores.map((v) => (
               <div
-                key={v}
+                key={v.id}
                 className="group flex items-center gap-1.5 rounded-full bg-secondary pl-3 pr-1 py-1 text-sm font-medium"
               >
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="truncate max-w-[80px]">{v}</span>
+                <span className="truncate max-w-[80px]">{v.nombre}</span>
                 <button
                   type="button"
-                  onClick={() => onRemoveVendedor(v)}
+                  onClick={() => onRemoveVendedor(v.id)}
                   className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -130,20 +146,59 @@ export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemove
             ))}
           </div>
 
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nuevo vendedor"
-              value={nuevoVendedor}
-              onChange={(e) => setNuevoVendedor(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddVendedor()}
-              className="h-11 text-base"
-            />
+          <div className="space-y-3 rounded-lg border-2 border-dashed border-muted p-3">
+            <p className="text-sm font-medium text-muted-foreground">Nuevo vendedor</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nombre</Label>
+                <Input
+                  placeholder="Nombre del vendedor"
+                  value={nuevoVendedor}
+                  onChange={(e) => setNuevoVendedor(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddVendedor()}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  Universidad
+                </Label>
+                <Select value={nuevaUniversidad} onValueChange={(v) => setNuevaUniversidad(v as VendedorInfo['universidad'])}>
+                  <SelectTrigger className="h-11 w-full text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIVERSIDADES.map((u) => (
+                      <SelectItem key={u} value={u} className="text-base">
+                        {u}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs flex items-center gap-1">
+                  <Phone className="h-3.5 w-3.5" />
+                  Número de teléfono
+                </Label>
+                <Input
+                  placeholder="Ej: 300 123 4567"
+                  value={nuevoTelefono}
+                  onChange={(e) => setNuevoTelefono(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddVendedor()}
+                  className="h-11 text-base"
+                  inputMode="tel"
+                />
+              </div>
+            </div>
             <Button
               onClick={handleAddVendedor}
               disabled={!nuevoVendedor.trim()}
-              className="h-11 px-4 shrink-0"
+              className="h-11 w-full sm:w-auto"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar vendedor
             </Button>
           </div>
         </CardContent>
@@ -232,7 +287,7 @@ export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemove
         {showPrecios && (
           <CardContent className="p-4 space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-sm">Tu costo (distribucion)</Label>
+              <Label className="text-sm">{config.nombreSocio1} ingreso (distribución)</Label>
               <div className="relative">
                 <Input
                   type="text"
@@ -428,7 +483,7 @@ export function GestionNegocio({ config, onConfigChange, onAddVendedor, onRemove
                       e.currentTarget.blur()
                     }
                   }}
-                  placeholder="Socio 1 (tu)"
+                  placeholder="Socio 1"
                   className="h-10 text-sm"
                 />
                 <Input

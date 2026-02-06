@@ -1,12 +1,18 @@
 import { type ConfigNegocio, CONFIG_DEFAULT, type Venta } from './types'
 
+/**
+ * valorDomicilio: si se pasa, se usa como domicilio total (ej. al editar en historial).
+ * Si no se pasa, se usa config.domicilioTotal cuando incluyeDomicilio, o 0.
+ * Al registrar la venta se guarda con 0 y se edita después.
+ */
 export function calcularVenta(
   vendedor: string,
   cantidad: number,
   incluyeDomicilio: boolean = true,
-  config: ConfigNegocio = CONFIG_DEFAULT
-): Omit<Venta, 'id' | 'fecha'> {
-  // Costo de distribucion (lo que tu facturas)
+  config: ConfigNegocio = CONFIG_DEFAULT,
+  valorDomicilio?: number
+): Omit<Venta, 'id' | 'fecha' | 'vendedorId'> {
+  // Ingreso del administrador por distribución (lo que facturas; pertenece al administrador, no es costo)
   const costoDistribucion = cantidad * config.precioDistribucion
 
   // Ingreso del vendedor (lo que el vendedor paga)
@@ -26,14 +32,16 @@ export function calcularVenta(
   // Comision de Jeronimo (todas las unidades)
   const comisionJeronimo = cantidad * config.comisionJeronimoPorUnidad
 
-  // Domicilio
-  const domicilioTotal = incluyeDomicilio ? config.domicilioTotal : 0
+  // Domicilio: valor explícito o según incluyeDomicilio (0 al registrar para definir después)
+  const domicilioTotal =
+    valorDomicilio !== undefined ? valorDomicilio : incluyeDomicilio ? config.domicilioTotal : 0
   const domicilioVendedor = domicilioTotal * 0.5
   const domicilioSocios = domicilioTotal * 0.5 // Se divide entre 3 socios
 
-  // Ganancia del operador (tu)
+  // Ganancia del operador: todo lo que sobra del total venta después de comisiones y su parte del domicilio
+  // (incluye la distribución neta + el resto ingresoVendedor − costoDistribucion, para que sume: Miguel + Jerónimo + Mildrey = Total venta)
   const gananciaOperador =
-    ingresoVendedor - costoDistribucion - comisionMiguel - comisionJeronimo - domicilioSocios / 3
+    ingresoVendedor - comisionMiguel - comisionJeronimo - domicilioSocios / 3
 
   return {
     vendedor,

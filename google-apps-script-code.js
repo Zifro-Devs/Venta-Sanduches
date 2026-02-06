@@ -59,7 +59,7 @@ function obtenerHojaConfiguracion() {
             ['comisionJeronimoPorUnidad', 500],
             ['limiteComisionMiguel', 20],
             ['domicilioTotal', 5000],
-            ['nombreSocio1', 'Tu'],
+            ['nombreSocio1', 'Mildrey'],
             ['nombreSocio2', 'Miguel'],
             ['nombreSocio3', 'Jeronimo'],
             ['vendedores', 'Carlos,Maria,Pedro']

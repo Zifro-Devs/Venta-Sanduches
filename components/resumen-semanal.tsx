@@ -169,7 +169,7 @@ export function ResumenSemanal({ config }: Props) {
               <span className="font-medium">{formatCurrency(resumen.domicilioTotal / 2)}</span>
             </div>
             <div className="flex justify-between border-t pt-2">
-              <span className="text-muted-foreground">Tu parte</span>
+              <span className="text-muted-foreground">{config.nombreSocio1} parte</span>
               <span className="font-bold">{formatCurrency(resumen.domicilioSocios / 3)}</span>
             </div>
           </div>
@@ -203,7 +203,7 @@ export function ResumenSemanal({ config }: Props) {
       {/* Ganancia */}
       <Card className="border-2 border-accent bg-accent/10 overflow-hidden">
         <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">Tu Ganancia</p>
+          <p className="text-sm text-muted-foreground">{config.nombreSocio1} Ganancia</p>
           <p className="mt-1 text-2xl font-bold text-accent">{formatCurrency(resumen.gananciaOperador)}</p>
         </CardContent>
       </Card>

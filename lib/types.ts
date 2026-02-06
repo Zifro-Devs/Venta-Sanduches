@@ -1,6 +1,7 @@
 export interface Venta {
   id: string
   fecha: string
+  vendedorId: string
   vendedor: string
   cantidad: number
   costoDistribucion: number
@@ -37,7 +38,27 @@ export interface ResumenMensual {
   gananciaOperador: number
 }
 
-// Configuracion dinamica del negocio
+// Universidades disponibles (tabla universidades en Supabase)
+export const UNIVERSIDADES = ['U Nacional', 'UdeA', 'EAFIT'] as const
+export type Universidad = (typeof UNIVERSIDADES)[number]
+
+// Vendedor como entidad (tabla vendedores)
+export interface Vendedor {
+  id: string
+  nombre: string
+  universidadId: string
+  universidad: string
+  telefono: string
+}
+
+// Para crear/actualizar vendedor (sin id)
+export interface VendedorInfo {
+  nombre: string
+  universidad: Universidad
+  telefono: string
+}
+
+// Configuracion del negocio (sin lista de vendedores; se obtienen de /api/vendedores)
 export interface ConfigNegocio {
   precioDistribucion: number
   precioVendedorPrimeros20: number
@@ -47,7 +68,6 @@ export interface ConfigNegocio {
   limiteComisionMiguel: number
   comisionJeronimoPorUnidad: number
   domicilioTotal: number
-  vendedores: string[]
   nombreSocio1: string
   nombreSocio2: string
   nombreSocio3: string
@@ -63,15 +83,10 @@ export const CONFIG_DEFAULT: ConfigNegocio = {
   limiteComisionMiguel: 20,
   comisionJeronimoPorUnidad: 500,
   domicilioTotal: 5000,
-  vendedores: ['Carlos', 'Maria', 'Pedro'],
-  nombreSocio1: 'Tu',
+  nombreSocio1: 'Mildrey',
   nombreSocio2: 'Miguel',
   nombreSocio3: 'Jeronimo',
 }
-
-// Para compatibilidad con el codigo existente
-export const VENDEDORES = CONFIG_DEFAULT.vendedores
-export type Vendedor = string
 
 export const CONFIG = {
   PRECIO_DISTRIBUCION: CONFIG_DEFAULT.precioDistribucion,

@@ -17,8 +17,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Sandwiches Control',
-  description: 'Sistema de control de ventas de sandwiches',
+  title: 'Uy Qué Cubano - Control de Ventas',
+  description: 'Sistema de control de ventas de Uy Qué Cubano',
   generator: 'v0.app',
   icons: {
     icon: [

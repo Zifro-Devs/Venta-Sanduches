@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
-import { obtenerResumenSemanal, obtenerResumenMensual } from '@/lib/database'
+import { obtenerResumenSemanal, obtenerResumenMensual, obtenerResumenPorRangoFechas } from '@/lib/database'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const tipo = searchParams.get('tipo') || 'semanal'
+  const fechaDesde = searchParams.get('fechaDesde') ?? undefined
+  const fechaHasta = searchParams.get('fechaHasta') ?? undefined
 
   try {
     if (tipo === 'semanal') {
@@ -17,7 +19,10 @@ export async function GET(request: Request) {
         )
       }
     } else if (tipo === 'mensual') {
-      const result = await obtenerResumenMensual()
+      const result =
+        fechaDesde && fechaHasta
+          ? await obtenerResumenPorRangoFechas(fechaDesde, fechaHasta)
+          : await obtenerResumenMensual()
       if (result.success) {
         return NextResponse.json({ success: true, data: result.data })
       } else {

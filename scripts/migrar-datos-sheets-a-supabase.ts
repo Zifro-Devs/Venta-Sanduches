@@ -53,20 +53,29 @@ async function obtenerVentasDeGoogleSheets(): Promise<VentaGoogleSheets[]> {
 async function migrarVentasASupabase(ventas: VentaGoogleSheets[]) {
   console.log(`📦 Migrando ${ventas.length} ventas a Supabase...`)
 
-  const ventasDB = ventas.map(venta => ({
-    // No incluimos el ID para que Supabase genere uno nuevo
-    fecha: venta.fecha,
-    vendedor: venta.vendedor,
-    cantidad: venta.cantidad,
-    costo_distribucion: venta.costoDistribucion,
-    ingreso_vendedor: venta.ingresoVendedor,
-    comision_miguel: venta.comisionMiguel,
-    comision_jeronimo: venta.comisionJeronimo,
-    domicilio_total: venta.domicilioTotal,
-    domicilio_vendedor: venta.domicilioVendedor,
-    domicilio_socios: venta.domicilioSocios,
-    ganancia_operador: venta.gananciaOperador,
-  }))
+  const { data: vendedores } = await supabase.from('vendedores').select('id, nombre')
+  const vendedorIdPorNombre = new Map((vendedores ?? []).map((v: { id: string; nombre: string }) => [v.nombre, v.id]))
+  const defaultVendedorId = vendedores?.[0]?.id
+  if (!defaultVendedorId && ventas.length > 0) {
+    throw new Error('No hay vendedores en la tabla vendedores. Ejecuta primero la migración de configuración.')
+  }
+
+  const ventasDB = ventas.map((venta) => {
+    const vendedorId = vendedorIdPorNombre.get(venta.vendedor) ?? defaultVendedorId
+    return {
+      fecha: venta.fecha,
+      vendedor_id: vendedorId,
+      cantidad: venta.cantidad,
+      costo_distribucion: venta.costoDistribucion,
+      ingreso_vendedor: venta.ingresoVendedor,
+      comision_miguel: venta.comisionMiguel,
+      comision_jeronimo: venta.comisionJeronimo,
+      domicilio_total: venta.domicilioTotal,
+      domicilio_vendedor: venta.domicilioVendedor,
+      domicilio_socios: venta.domicilioSocios,
+      ganancia_operador: venta.gananciaOperador,
+    }
+  })
 
   // Insertar en lotes de 100 para evitar límites
   const batchSize = 100
@@ -117,41 +126,39 @@ async function migrarConfiguracion() {
     limite_comision_miguel: config.limiteComisionMiguel,
     comision_jeronimo_por_unidad: config.comisionJeronimoPorUnidad,
     domicilio_total: config.domicilioTotal,
-    vendedores: config.vendedores,
     nombre_socio1: config.nombreSocio1,
     nombre_socio2: config.nombreSocio2,
     nombre_socio3: config.nombreSocio3,
   }
 
-  // Verificar si ya existe configuración
-  const { data: existing } = await supabase
-    .from('configuracion')
-    .select('id')
-    .limit(1)
-    .single()
-
+  const { data: existing } = await supabase.from('configuracion').select('id').limit(1).single()
   if (existing) {
-    const { error } = await supabase
-      .from('configuracion')
-      .update(configDB)
-      .eq('id', existing.id)
-
-    if (error) {
-      console.error('❌ Error al actualizar configuración:', error)
-      throw error
-    }
+    const { error } = await supabase.from('configuracion').update(configDB).eq('id', existing.id)
+    if (error) throw error
   } else {
-    const { error } = await supabase
-      .from('configuracion')
-      .insert([configDB])
-
-    if (error) {
-      console.error('❌ Error al crear configuración:', error)
-      throw error
-    }
+    const { error } = await supabase.from('configuracion').insert([configDB])
+    if (error) throw error
   }
+  console.log('✅ Configuración migrada')
 
-  console.log('✅ Configuración migrada exitosamente')
+  // Insertar vendedores en tabla vendedores (modelo relacional)
+  const vendedoresArray = config.vendedores ?? []
+  const vendedoresList: { nombre: string; universidad: string; telefono: string }[] = Array.isArray(vendedoresArray)
+    ? vendedoresArray.map((v: { nombre?: string; universidad?: string; telefono?: string } | string) =>
+        typeof v === 'string'
+          ? { nombre: v, universidad: 'U Nacional', telefono: '' }
+          : { nombre: (v as any).nombre ?? '', universidad: (v as any).universidad ?? 'U Nacional', telefono: (v as any).telefono ?? '' }
+      )
+    : []
+  const { data: univRows } = await supabase.from('universidades').select('id, nombre')
+  const univMap = new Map((univRows ?? []).map((u: { id: string; nombre: string }) => [u.nombre, u.id]))
+  for (const v of vendedoresList) {
+    if (!v.nombre?.trim()) continue
+    const univId = univMap.get(v.universidad) ?? univMap.get('U Nacional')
+    if (!univId) continue
+    await supabase.from('vendedores').upsert({ nombre: v.nombre.trim(), universidad_id: univId, telefono: v.telefono ?? '' }, { onConflict: 'nombre' })
+  }
+  console.log('✅ Vendedores migrados a tabla vendedores')
 }
 
 async function main() {

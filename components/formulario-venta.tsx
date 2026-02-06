@@ -5,27 +5,41 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { type ConfigNegocio } from '@/lib/types'
+import { type ConfigNegocio, type Vendedor } from '@/lib/types'
 import { calcularVenta, formatCurrency } from '@/lib/calculos'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Check, Loader2, Minus, Plus, Truck, User } from 'lucide-react'
 
 interface Props {
   config: ConfigNegocio
+  vendedores: Vendedor[]
   onVentaRegistrada?: () => void
 }
 
-export function FormularioVenta({ config, onVentaRegistrada }: Props) {
-  const [vendedor, setVendedor] = useState<string>('')
+export function FormularioVenta({ config, vendedores, onVentaRegistrada }: Props) {
+  const [vendedorId, setVendedorId] = useState<string>('')
   const [cantidad, setCantidad] = useState<number>(10)
   const [incluyeDomicilio, setIncluyeDomicilio] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const preview = vendedor && cantidad > 0 ? calcularVenta(vendedor, cantidad, incluyeDomicilio, config) : null
+  const vendedorSeleccionado = vendedores.find((v) => v.id === vendedorId)
+  // En el preview, si incluye domicilio mostramos 0 (valor por definir); si no, 0.
+  const valorDomicilioPreview = incluyeDomicilio ? 0 : undefined
+  const preview =
+    vendedorSeleccionado && cantidad > 0
+      ? calcularVenta(vendedorSeleccionado.nombre, cantidad, incluyeDomicilio, config, valorDomicilioPreview)
+      : null
 
   const handleSubmit = async () => {
-    if (!vendedor || cantidad < 1) return
+    if (!vendedorId || cantidad < 1) return
 
     setIsSubmitting(true)
     setError(null)
@@ -34,7 +48,7 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
       const response = await fetch('/api/ventas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vendedor, cantidad, incluyeDomicilio, config }),
+        body: JSON.stringify({ vendedorId, cantidad, incluyeDomicilio, config }),
       })
 
       const result = await response.json()
@@ -43,7 +57,7 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
         setSuccess(true)
         setTimeout(() => {
           setSuccess(false)
-          setVendedor('')
+          setVendedorId('')
           setCantidad(10)
           onVentaRegistrada?.()
         }, 1500)
@@ -65,36 +79,19 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
       {/* Selector de vendedor */}
       <div className="space-y-2">
         <Label className="text-base font-semibold">Vendedor</Label>
-        <div className="grid grid-cols-3 gap-2">
-          {config.vendedores.map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setVendedor(v)}
-              className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all ${
-                vendedor === v
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-card active:bg-muted'
-              }`}
-            >
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                  vendedor === v ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}
-              >
-                <User className="h-5 w-5" />
-              </div>
-              <span className={`text-sm font-medium truncate w-full text-center ${vendedor === v ? 'text-primary' : ''}`}>
-                {v}
-              </span>
-              {vendedor === v && (
-                <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Check className="h-3 w-3" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
+        <Select value={vendedorId} onValueChange={setVendedorId}>
+          <SelectTrigger className="h-12 w-full rounded-xl border-2 text-base">
+            <User className="h-5 w-5 text-muted-foreground" />
+            <SelectValue placeholder="Selecciona un vendedor" />
+          </SelectTrigger>
+          <SelectContent>
+            {vendedores.map((v) => (
+              <SelectItem key={v.id} value={v.id} className="text-base">
+                {v.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Selector de cantidad */}
@@ -179,8 +176,8 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
             <Truck className="h-5 w-5" />
           </div>
           <div className="text-left">
-            <p className="text-base font-semibold">Domicilio</p>
-            <p className="text-sm text-muted-foreground">{formatCurrency(config.domicilioTotal)}</p>
+            <p className="text-base font-semibold">Incluye domicilio</p>
+            <p className="text-sm text-muted-foreground">El valor se define de el historial</p>
           </div>
         </div>
         <Switch 
@@ -200,56 +197,53 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
           <CardContent className="p-4 space-y-3">
             <h3 className="text-base font-bold text-primary">Resumen</h3>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-card p-3">
-                <p className="text-xs text-muted-foreground">Vendedor paga</p>
-                <p className="text-base font-bold truncate">{formatCurrency(preview.ingresoVendedor)}</p>
-              </div>
-              <div className="rounded-lg bg-card p-3">
-                <p className="text-xs text-muted-foreground">Tu costo</p>
-                <p className="text-base font-bold truncate">{formatCurrency(preview.costoDistribucion)}</p>
-              </div>
+            <div className="rounded-lg bg-card p-3">
+              <p className="text-xs text-muted-foreground">Total venta</p>
+              <p className="text-base font-bold truncate">{formatCurrency(preview.ingresoVendedor)}</p>
             </div>
 
             <div className="h-px bg-border" />
 
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">Comisiones</p>
-              <div className="flex items-center justify-between rounded-lg bg-chart-1/10 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{config.nombreSocio2}</p>
-                  <p className="text-xs text-muted-foreground">{Math.min(cantidad, config.limiteComisionMiguel)} ud.</p>
-                </div>
-                <p className="text-base font-bold text-chart-1 ml-2">{formatCurrency(preview.comisionMiguel)}</p>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-chart-2/10 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{config.nombreSocio3}</p>
-                  <p className="text-xs text-muted-foreground">{cantidad} ud.</p>
-                </div>
-                <p className="text-base font-bold text-chart-2 ml-2">{formatCurrency(preview.comisionJeronimo)}</p>
-              </div>
+              <p className="text-xs font-semibold text-muted-foreground">Comisiones (menos domicilio 1/3 cada uno)</p>
+              {(() => {
+                const parteDomicilio = preview.domicilioSocios / 3
+                const netoMiguel = preview.comisionMiguel - parteDomicilio
+                const netoJeronimo = preview.comisionJeronimo - parteDomicilio
+                return (
+                  <>
+                    <div className="rounded-lg bg-chart-1/10 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">{config.nombreSocio2}</p>
+                        <p className="text-base font-bold text-chart-1 ml-2">{formatCurrency(netoMiguel)}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(preview.comisionMiguel)} comisión
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-chart-2/10 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">{config.nombreSocio3}</p>
+                        <p className="text-base font-bold text-chart-2 ml-2">{formatCurrency(netoJeronimo)}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(preview.comisionJeronimo)} comisión
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-primary/10 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">{config.nombreSocio1}</p>
+                        <p className="text-base font-bold text-primary ml-2">{formatCurrency(preview.gananciaOperador)}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(preview.ingresoVendedor)} total − {formatCurrency(preview.comisionMiguel)} − {formatCurrency(preview.comisionJeronimo)}
+                      </p>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
-            {incluyeDomicilio && (
-              <>
-                <div className="h-px bg-border" />
-                <div className="flex items-center justify-between rounded-lg bg-accent/10 p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">Tu parte domicilio</p>
-                    <p className="text-xs text-muted-foreground">1/3 del 50%</p>
-                  </div>
-                  <p className="text-base font-bold text-accent ml-2">{formatCurrency(preview.domicilioSocios / 3)}</p>
-                </div>
-              </>
-            )}
-
-            <div className="h-px bg-border" />
-
-            <div className="flex items-center justify-between rounded-xl bg-primary p-4 text-primary-foreground">
-              <span className="font-semibold">Tu ganancia</span>
-              <span className="text-lg font-bold">{formatCurrency(preview.gananciaOperador)}</span>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -258,7 +252,7 @@ export function FormularioVenta({ config, onVentaRegistrada }: Props) {
       <Button
         className="h-14 w-full text-base font-bold rounded-xl"
         onClick={handleSubmit}
-        disabled={!vendedor || cantidad < 1 || isSubmitting || success}
+        disabled={!vendedorId || cantidad < 1 || isSubmitting || success}
       >
         {isSubmitting ? (
           <>

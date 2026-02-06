@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { SelectorMes } from '@/components/selector-mes'
+import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/calculos'
 import { type ConfigNegocio } from '@/lib/types'
 import type { ResumenMensual as ResumenMensualType } from '@/lib/types'
-import { CalendarDays, DollarSign, Package, TrendingUp, Truck, AlertCircle } from 'lucide-react'
+import { CalendarDays, DollarSign, Filter, Package, TrendingUp, Truck } from 'lucide-react'
+
+function toDateInputValue(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
 
 interface Props {
   config: ConfigNegocio
@@ -27,18 +31,27 @@ export function ResumenMensual({ config }: Props) {
   const [loading, setLoading] = useState(true)
   const [mesSeleccionado, setMesSeleccionado] = useState<string>('')
 
-  const fetchResumen = async (mes?: string) => {
+  const [fechaDesde, setFechaDesde] = useState(() => {
+    const d = new Date()
+    return toDateInputValue(new Date(d.getFullYear(), d.getMonth(), 1))
+  })
+  const [fechaHasta, setFechaHasta] = useState(() => toDateInputValue(new Date()))
+
+  const fetchResumen = useCallback(async (mes?: string) => {
     setLoading(true)
     try {
-      let url: string
       const appsScriptUrl = process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL
-      
+      let url: string
+
       if (mes && appsScriptUrl) {
         url = `${appsScriptUrl}?action=resumenMensual&mes=${encodeURIComponent(mes)}`
       } else {
-        url = '/api/resumenes?tipo=mensual'
+        const params = new URLSearchParams({ tipo: 'mensual' })
+        if (fechaDesde) params.set('fechaDesde', fechaDesde)
+        if (fechaHasta) params.set('fechaHasta', fechaHasta)
+        url = `/api/resumenes?${params.toString()}`
       }
-      
+
       const response = await fetch(url)
       const result = await response.json()
 
@@ -50,15 +63,27 @@ export function ResumenMensual({ config }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fechaDesde, fechaHasta])
 
   useEffect(() => {
     if (mesSeleccionado) {
-      fetchResumen(mesSeleccionado)
+      setLoading(true)
+      const appsScriptUrl = process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL
+      if (appsScriptUrl) {
+        fetch(`${appsScriptUrl}?action=resumenMensual&mes=${encodeURIComponent(mesSeleccionado)}`)
+          .then((r) => r.json())
+          .then((result) => {
+            if (result.success && result.data) setResumen(result.data)
+          })
+          .catch((e) => console.error('Error al obtener resumen:', e))
+          .finally(() => setLoading(false))
+      } else {
+        fetchResumen()
+      }
     } else {
       fetchResumen()
     }
-  }, [mesSeleccionado])
+  }, [mesSeleccionado, fechaDesde, fechaHasta])
 
   const handleMesChange = (mes: string) => {
     setMesSeleccionado(mes)
@@ -82,13 +107,39 @@ export function ResumenMensual({ config }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Selector de mes */}
-      <SelectorMes 
-        mesSeleccionado={mesSeleccionado} 
-        onMesChange={handleMesChange} 
-      />
 
-      {/* Header del mes - más pequeño */}
+
+      {/* Filtro por rango de fechas (como en historial) */}
+      <Card className="border-2 overflow-hidden">
+        <CardContent className="p-3 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            Rango de fechas
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Desde</Label>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Hasta</Label>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Header del mes / rango - más pequeño */}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">
         <CalendarDays className="h-4 w-4" />
         <span className="text-sm font-semibold">{resumen?.mes || 'Cargando...'}</span>
@@ -113,70 +164,88 @@ export function ResumenMensual({ config }: Props) {
         </div>
       </div>
 
-      {/* Comisiones - más espacioso */}
+      {/* Comisiones del Mes: total domicilios + comisión menos domicilio por socio (Miguel, Jerónimo, Mildrey) */}
       <div className="rounded-lg border p-3 bg-card">
         <h3 className="text-sm font-bold mb-3">Comisiones del Mes</h3>
-        
+
+        <div className="flex items-center justify-between text-sm mb-3 pb-2 border-b">
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <Truck className="h-3.5 w-3.5" />
+            Total domicilios
+          </span>
+          <span className="font-bold text-destructive">{formatCurrency(resumen?.domicilioTotal || 0)}</span>
+        </div>
+
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-chart-1" />
-              {config.nombreSocio2}
-            </span>
-            <span className="font-bold text-chart-1">{formatCurrency(resumen?.comisionMiguel || 0)}</span>
-          </div>
+          {(() => {
+            const domicilioTotal = resumen?.domicilioTotal || 0
+            const parteDomicilioPorSocio = domicilioTotal / 6
+            const comisionMiguel = resumen?.comisionMiguel || 0
+            const comisionJeronimo = resumen?.comisionJeronimo || 0
+            const gananciaOperador = resumen?.gananciaOperador || 0
+            const comisionMildrey = gananciaOperador + parteDomicilioPorSocio
+            const netoMiguel = comisionMiguel - parteDomicilioPorSocio
+            const netoJeronimo = comisionJeronimo - parteDomicilioPorSocio
+            const netoMildrey = gananciaOperador
+            const totalNeto = netoMiguel + netoJeronimo + netoMildrey
+            return (
+              <>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-chart-1" />
+                      {config.nombreSocio2}
+                    </span>
+                    <span className="font-bold text-green-600 dark:text-green-500">{formatCurrency(comisionMiguel)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground pl-5">
+                    <span>− Domicilio (1/6)</span>
+                    <span className="text-destructive">−{formatCurrency(parteDomicilioPorSocio)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-medium pl-5">
+                    <span>Neto</span>
+                    <span className="text-green-600 dark:text-green-500">{formatCurrency(netoMiguel)}</span>
+                  </div>
+                </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-chart-2" />
-              {config.nombreSocio3}
-            </span>
-            <span className="font-bold text-chart-2">{formatCurrency(resumen?.comisionJeronimo || 0)}</span>
-          </div>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-chart-2" />
+                      {config.nombreSocio3}
+                    </span>
+                    <span className="font-bold text-green-600 dark:text-green-500">{formatCurrency(comisionJeronimo)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground pl-5">
+                    <span>− Domicilio (1/6)</span>
+                    <span className="text-destructive">−{formatCurrency(parteDomicilioPorSocio)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-medium pl-5">
+                    <span>Neto</span>
+                    <span className="text-green-600 dark:text-green-500">{formatCurrency(netoJeronimo)}</span>
+                  </div>
+                </div>
 
-          <div className="flex items-center justify-between text-sm border-t pt-2 mt-2">
-            <span className="font-semibold">Total</span>
-            <span className="font-bold">{formatCurrency((resumen?.comisionMiguel || 0) + (resumen?.comisionJeronimo || 0))}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Domicilios - súper compacto */}
-      <div className="flex items-center gap-2 rounded-lg border p-2 bg-card">
-        <Truck className="h-4 w-4 text-accent" />
-        <div>
-          <p className="text-xs text-muted-foreground">Domicilios</p>
-          <p className="text-sm font-bold">{formatCurrency(resumen?.domicilioTotal || 0)}</p>
-        </div>
-      </div>
-
-      {/* Resumen - más espacioso */}
-      <div className="rounded-lg border border-accent p-3 bg-card">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="h-4 w-4 text-accent" />
-          <h3 className="text-sm font-bold">Resumen</h3>
-        </div>
-
-        <div className="space-y-1.5 text-sm rounded-lg bg-muted/50 p-3 mb-3">
-          <div className="flex justify-between">
-            <span>Facturado</span>
-            <span className="font-medium">{formatCurrency(resumen?.totalFacturado || 0)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>- Comisiones</span>
-            <span className="font-medium text-destructive">
-              -{formatCurrency((resumen?.comisionMiguel || 0) + (resumen?.comisionJeronimo || 0))}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>- Domicilios (1/6)</span>
-            <span className="font-medium text-destructive">-{formatCurrency((resumen?.domicilioTotal || 0) / 6)}</span>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-accent p-3 text-accent-foreground text-center">
-          <p className="text-xs opacity-80">Tu Ganancia</p>
-          <p className="text-base font-bold">{formatCurrency(resumen?.gananciaOperador || 0)}</p>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                      {config.nombreSocio1}
+                    </span>
+                    <span className="font-bold text-green-600 dark:text-green-500">{formatCurrency(comisionMildrey)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground pl-5">
+                    <span>− Domicilio (1/6)</span>
+                    <span className="text-destructive">−{formatCurrency(parteDomicilioPorSocio)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-medium pl-5">
+                    <span>Neto</span>
+                    <span className="text-green-600 dark:text-green-500">{formatCurrency(netoMildrey)}</span>
+                  </div>
+                </div>
+              </>
+            )
+          })()}
         </div>
       </div>
     </div>
