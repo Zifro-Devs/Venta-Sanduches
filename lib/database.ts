@@ -1,4 +1,4 @@
-import type { Venta, ResumenSemanal, ResumenMensual, ConfigNegocio, Vendedor, VendedorInfo } from './types'
+import type { Venta, ResumenSemanal, ResumenMensual, ConfigNegocio, Vendedor, VendedorInfo, UniversidadEntity } from './types'
 import { supabase } from './supabase'
 import { getWeekRange } from './calculos'
 
@@ -297,12 +297,75 @@ export async function actualizarDomicilioVenta(
   }
 }
 
+// ---------- Universidades (soft delete: solo se listan las no eliminadas) ----------
+export async function obtenerUniversidades(): Promise<{ success: boolean; data?: UniversidadEntity[]; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('universidades')
+      .select('id, nombre')
+      .is('deleted_at', null)
+      .order('nombre')
+    if (error) {
+      console.error('Error al obtener universidades:', error)
+      return { success: false, error: error.message }
+    }
+    const universidades: UniversidadEntity[] = (data ?? []).map((row: { id: string; nombre: string }) => ({
+      id: row.id,
+      nombre: row.nombre,
+    }))
+    return { success: true, data: universidades }
+  } catch (error) {
+    console.error('Error al obtener universidades:', error)
+    return { success: false, error: 'Error al obtener universidades' }
+  }
+}
+
+export async function crearUniversidad(nombre: string): Promise<{ success: boolean; id?: string; error?: string }> {
+  const validacion = validarSupabase()
+  if (!validacion.success) return validacion
+  try {
+    const nombreTrim = nombre.trim()
+    if (!nombreTrim) return { success: false, error: 'Nombre requerido' }
+    const { data, error } = await supabase
+      .from('universidades')
+      .insert([{ nombre: nombreTrim }])
+      .select('id')
+      .single()
+    if (error) {
+      console.error('Error al crear universidad:', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true, id: data.id }
+  } catch (error) {
+    console.error('Error al crear universidad:', error)
+    return { success: false, error: 'Error al conectar con la base de datos' }
+  }
+}
+
+export async function eliminarUniversidad(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('universidades')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      console.error('Error al eliminar universidad:', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error al eliminar universidad:', error)
+    return { success: false, error: 'Error al eliminar universidad' }
+  }
+}
+
 // ---------- Vendedores ----------
 export async function obtenerVendedores(): Promise<{ success: boolean; data?: Vendedor[]; error?: string }> {
   try {
     const { data, error } = await supabase
       .from('vendedores')
       .select('id, nombre, universidad_id, telefono, universidades(nombre)')
+      .is('deleted_at', null)
       .order('nombre')
     if (error) {
       console.error('Error al obtener vendedores:', error)
@@ -326,7 +389,13 @@ export async function crearVendedor(info: VendedorInfo): Promise<{ success: bool
   const validacion = validarSupabase()
   if (!validacion.success) return validacion
   try {
-    const { data: univ } = await supabase.from('universidades').select('id').eq('nombre', info.universidad).limit(1).single()
+    const { data: univ } = await supabase
+      .from('universidades')
+      .select('id')
+      .eq('nombre', info.universidad)
+      .is('deleted_at', null)
+      .limit(1)
+      .single()
     if (!univ?.id) {
       return { success: false, error: 'Universidad no encontrada' }
     }
@@ -348,7 +417,10 @@ export async function crearVendedor(info: VendedorInfo): Promise<{ success: bool
 
 export async function eliminarVendedor(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.from('vendedores').delete().eq('id', id)
+    const { error } = await supabase
+      .from('vendedores')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) {
       console.error('Error al eliminar vendedor:', error)
       return { success: false, error: error.message }

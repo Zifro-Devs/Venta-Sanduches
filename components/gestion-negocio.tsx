@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { type ConfigNegocio, type Vendedor, type VendedorInfo, UNIVERSIDADES } from '@/lib/types'
-import { formatCurrency } from '@/lib/calculos'
+import { type ConfigNegocio, type Vendedor, type VendedorInfo, type UniversidadEntity, UNIVERSIDADES } from '@/lib/types'
 import {
   Select,
   SelectContent,
@@ -14,36 +13,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Check, Plus, Trash2, User, DollarSign, Truck, Users, ChevronDown, ChevronUp, Phone, GraduationCap } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Check, Plus, Trash2, User, DollarSign, Users, ChevronDown, ChevronUp, Phone, GraduationCap } from 'lucide-react'
 
 interface Props {
   config: ConfigNegocio
   vendedores: Vendedor[]
+  universidades: UniversidadEntity[]
   onConfigChange: (config: Partial<ConfigNegocio>) => void
   onAddVendedor: (vendedor: VendedorInfo) => void
   onRemoveVendedor: (id: string) => void
+  onAddUniversidad: (nombre: string) => void
+  onRemoveUniversidad: (id: string) => void
 }
 
-export function GestionNegocio({ config, vendedores, onConfigChange, onAddVendedor, onRemoveVendedor }: Props) {
+export function GestionNegocio({ config, vendedores, universidades, onConfigChange, onAddVendedor, onRemoveVendedor, onAddUniversidad, onRemoveUniversidad }: Props) {
   const [nuevoVendedor, setNuevoVendedor] = useState('')
-  const [nuevaUniversidad, setNuevaUniversidad] = useState<VendedorInfo['universidad']>('U Nacional')
+  const [nuevaUniversidad, setNuevaUniversidad] = useState<string>('U Nacional')
   const [nuevoTelefono, setNuevoTelefono] = useState('')
+  const [nuevoNombreUniversidad, setNuevoNombreUniversidad] = useState('')
   const [showPrecios, setShowPrecios] = useState(false)
   const [showComisiones, setShowComisiones] = useState(false)
   const [saved, setSaved] = useState<string | null>(null)
-  
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<{ tipo: 'universidad' | 'vendedor'; id: string; nombre: string } | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+
   // Estados locales para edición
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
+
+  const listaUniversidades = universidades.length > 0 ? universidades.map((u) => u.nombre) : [...UNIVERSIDADES]
+  const universidadDefault = listaUniversidades[0] ?? 'U Nacional'
+
+  const handleAddUniversidad = () => {
+    if (nuevoNombreUniversidad.trim()) {
+      onAddUniversidad(nuevoNombreUniversidad.trim())
+      setNuevoNombreUniversidad('')
+      showSaved('universidad')
+    }
+  }
 
   const handleAddVendedor = () => {
     if (nuevoVendedor.trim()) {
       onAddVendedor({
         nombre: nuevoVendedor.trim(),
-        universidad: nuevaUniversidad,
+        universidad: nuevaUniversidad || universidadDefault,
         telefono: nuevoTelefono.trim(),
       })
       setNuevoVendedor('')
-      setNuevaUniversidad('U Nacional')
+      setNuevaUniversidad(universidadDefault)
       setNuevoTelefono('')
       showSaved('vendedor')
     }
@@ -52,6 +69,21 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
   const showSaved = (key: string) => {
     setSaved(key)
     setTimeout(() => setSaved(null), 1500)
+  }
+
+  const handleConfirmarEliminar = async () => {
+    if (!confirmandoEliminar) return
+    setEliminando(true)
+    try {
+      if (confirmandoEliminar.tipo === 'universidad') {
+        await onRemoveUniversidad(confirmandoEliminar.id)
+      } else {
+        await onRemoveVendedor(confirmandoEliminar.id)
+      }
+      setConfirmandoEliminar(null)
+    } finally {
+      setEliminando(false)
+    }
   }
 
   // Función para iniciar edición
@@ -116,6 +148,65 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
 
   return (
     <div className="space-y-4">
+      {/* Universidades */}
+      <Card className="overflow-hidden border-2">
+        <CardHeader className="bg-primary/5 p-4 pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <GraduationCap className="h-4 w-4 text-primary" />
+            </div>
+            Universidades
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {universidades.map((u) => (
+              <div
+                key={u.id}
+                className="group flex items-center gap-1.5 rounded-full bg-secondary pl-3 pr-1 py-1 text-sm font-medium"
+              >
+                <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="truncate max-w-[120px]">{u.nombre}</span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmandoEliminar({ tipo: 'universidad', id: u.id, nombre: u.nombre })}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3 rounded-lg border-2 border-dashed border-muted p-3">
+            <p className="text-sm font-medium text-muted-foreground">Nueva universidad</p>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                placeholder="Nombre de la universidad"
+                value={nuevoNombreUniversidad}
+                onChange={(e) => setNuevoNombreUniversidad(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddUniversidad()}
+                className="h-11 flex-1 min-w-[180px] text-base"
+              />
+              <Button
+                onClick={handleAddUniversidad}
+                disabled={!nuevoNombreUniversidad.trim()}
+                className="h-11"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar
+              </Button>
+            </div>
+            {saved === 'universidad' && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Check className="h-3.5 w-3.5 text-accent" />
+                Universidad agregada
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Vendedores */}
       <Card className="overflow-hidden border-2">
         <CardHeader className="bg-primary/5 p-4 pb-3">
@@ -137,7 +228,7 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
                 <span className="truncate max-w-[80px]">{v.nombre}</span>
                 <button
                   type="button"
-                  onClick={() => onRemoveVendedor(v.id)}
+                  onClick={() => setConfirmandoEliminar({ tipo: 'vendedor', id: v.id, nombre: v.nombre })}
                   className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -164,12 +255,12 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
                   <GraduationCap className="h-3.5 w-3.5" />
                   Universidad
                 </Label>
-                <Select value={nuevaUniversidad} onValueChange={(v) => setNuevaUniversidad(v as VendedorInfo['universidad'])}>
+                <Select value={nuevaUniversidad || universidadDefault} onValueChange={(v) => setNuevaUniversidad(v)}>
                   <SelectTrigger className="h-11 w-full text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {UNIVERSIDADES.map((u) => (
+                    {listaUniversidades.map((u) => (
                       <SelectItem key={u} value={u} className="text-base">
                         {u}
                       </SelectItem>
@@ -200,63 +291,6 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
               <Plus className="h-4 w-4 mr-2" />
               Agregar vendedor
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Domicilio */}
-      <Card className="overflow-hidden border-2">
-        <CardHeader className="bg-accent/5 p-4 pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-              <Truck className="h-4 w-4 text-accent" />
-            </div>
-            Domicilio
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-sm text-muted-foreground">Precio</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={getDisplayValue('domicilioTotal')}
-                onFocus={() => startEditing('domicilioTotal', config.domicilioTotal)}
-                onChange={(e) => handleEditChange('domicilioTotal', e.target.value)}
-                onBlur={() => finishEditing('domicilioTotal')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    finishEditing('domicilioTotal')
-                    e.currentTarget.blur()
-                  }
-                  if (e.key === 'Escape') {
-                    cancelEditing('domicilioTotal')
-                    e.currentTarget.blur()
-                  }
-                }}
-                className="h-12 pl-9 text-lg font-bold"
-                placeholder="Precio del domicilio"
-              />
-              {saved === 'domicilioTotal' && (
-                <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-accent" />
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Division:</p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-lg bg-card p-2 text-center">
-                <p className="text-xs text-muted-foreground">Vendedor</p>
-                <p className="font-bold">{formatCurrency(config.domicilioTotal * 0.5)}</p>
-              </div>
-              <div className="rounded-lg bg-card p-2 text-center">
-                <p className="text-xs text-muted-foreground">Cada socio</p>
-                <p className="font-bold">{formatCurrency((config.domicilioTotal * 0.5) / 3)}</p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -527,6 +561,31 @@ export function GestionNegocio({ config, vendedores, onConfigChange, onAddVended
           </CardContent>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={!!confirmandoEliminar}
+        onOpenChange={(open) => !open && setConfirmandoEliminar(null)}
+        title={confirmandoEliminar?.tipo === 'universidad' ? '¿Eliminar esta universidad?' : '¿Eliminar este vendedor?'}
+        description={
+          <p>
+            {confirmandoEliminar?.tipo === 'universidad' ? (
+              <>
+                Se marcará como eliminada la universidad <span className="font-semibold">&quot;{confirmandoEliminar?.nombre}&quot;</span>.
+                No se mostrará en listas pero se conservará el historial.
+              </>
+            ) : (
+              <>
+                Se marcará como eliminado el vendedor <span className="font-semibold">&quot;{confirmandoEliminar?.nombre}&quot;</span>.
+                No aparecerá en listas pero seguirá visible en las ventas ya registradas.
+              </>
+            )}
+          </p>
+        }
+        confirmLabel={confirmandoEliminar?.tipo === 'universidad' ? 'Sí, eliminar universidad' : 'Sí, eliminar vendedor'}
+        loadingLabel="Eliminando..."
+        loading={eliminando}
+        onConfirm={handleConfirmarEliminar}
+      />
     </div>
   )
 }

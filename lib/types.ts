@@ -42,6 +42,12 @@ export interface ResumenMensual {
 export const UNIVERSIDADES = ['U Nacional', 'UdeA', 'EAFIT'] as const
 export type Universidad = (typeof UNIVERSIDADES)[number]
 
+// Universidad como entidad (tabla universidades)
+export interface UniversidadEntity {
+  id: string
+  nombre: string
+}
+
 // Vendedor como entidad (tabla vendedores)
 export interface Vendedor {
   id: string
@@ -51,10 +57,10 @@ export interface Vendedor {
   telefono: string
 }
 
-// Para crear/actualizar vendedor (sin id)
+// Para crear/actualizar vendedor (sin id); universidad es el nombre (de la tabla universidades)
 export interface VendedorInfo {
   nombre: string
-  universidad: Universidad
+  universidad: string
   telefono: string
 }
 

@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type ConfigNegocio, type Vendedor, type VendedorInfo, CONFIG_DEFAULT } from '@/lib/types'
+import { type ConfigNegocio, type Vendedor, type VendedorInfo, type UniversidadEntity, CONFIG_DEFAULT } from '@/lib/types'
 
 export function useConfigSheets() {
   const [config, setConfigState] = useState<ConfigNegocio>(CONFIG_DEFAULT)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
+  const [universidades, setUniversidades] = useState<UniversidadEntity[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -30,6 +31,18 @@ export function useConfigSheets() {
       }
     } catch (error) {
       console.error('Error al cargar vendedores:', error)
+    }
+  }, [])
+
+  const loadUniversidades = useCallback(async () => {
+    try {
+      const response = await fetch('/api/universidades')
+      const result = await response.json()
+      if (result.success && Array.isArray(result.data)) {
+        setUniversidades(result.data)
+      }
+    } catch (error) {
+      console.error('Error al cargar universidades:', error)
     }
   }, [])
 
@@ -89,19 +102,56 @@ export function useConfigSheets() {
     }
   }, [])
 
+  const addUniversidad = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return
+    try {
+      const response = await fetch('/api/universidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nombre.trim() }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        await loadUniversidades()
+      } else {
+        console.error('Error al agregar universidad:', result.error)
+      }
+    } catch (error) {
+      console.error('Error al agregar universidad:', error)
+    }
+  }, [loadUniversidades])
+
+  const removeUniversidad = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/universidades?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const result = await response.json()
+      if (result.success) {
+        setUniversidades((prev) => prev.filter((u) => u.id !== id))
+      } else {
+        console.error('Error al eliminar universidad:', result.error)
+      }
+    } catch (error) {
+      console.error('Error al eliminar universidad:', error)
+    }
+  }, [])
+
   useEffect(() => {
-    Promise.all([loadConfig(), loadVendedores()]).then(() => setIsLoaded(true))
-  }, [loadConfig, loadVendedores])
+    Promise.all([loadConfig(), loadVendedores(), loadUniversidades()]).then(() => setIsLoaded(true))
+  }, [loadConfig, loadVendedores, loadUniversidades])
 
   return {
     config,
     vendedores,
+    universidades,
     setConfig: saveConfig,
     addVendedor,
     removeVendedor,
+    addUniversidad,
+    removeUniversidad,
     isLoaded,
     isLoading,
     reloadConfig: loadConfig,
     reloadVendedores: loadVendedores,
+    reloadUniversidades: loadUniversidades,
   }
 }

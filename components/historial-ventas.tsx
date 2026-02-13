@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { formatCurrency } from '@/lib/calculos'
 import { type ConfigNegocio, type Venta, type Vendedor } from '@/lib/types'
 import {
@@ -457,39 +458,21 @@ export function HistorialVentas({ config, vendedores, refreshKey }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Modal confirmación de anulación */}
-      <Dialog open={!!confirmando} onOpenChange={(open) => !open && setConfirmando(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>¿Anular esta venta?</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p>
-              Esta acción <span className="font-semibold text-destructive">no se puede deshacer</span>. 
-              Se eliminará el registro de la venta del historial.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmando(null)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => confirmando && handleAnular(confirmando)}
-              disabled={!!anulando}
-            >
-              {anulando ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Anulando...
-                </>
-              ) : (
-                'Sí, anular venta'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!confirmando}
+        onOpenChange={(open) => !open && setConfirmando(null)}
+        title="¿Anular esta venta?"
+        description={
+          <p>
+            Esta acción <span className="font-semibold text-destructive">no se puede deshacer</span>.
+            Se eliminará el registro de la venta del historial.
+          </p>
+        }
+        confirmLabel="Sí, anular venta"
+        loadingLabel="Anulando..."
+        loading={!!anulando}
+        onConfirm={() => { if (confirmando) void handleAnular(confirmando) }}
+      />
     </div>
   )
 }

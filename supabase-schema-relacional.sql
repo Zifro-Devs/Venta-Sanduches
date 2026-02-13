@@ -3,11 +3,12 @@
 -- Ejecutar en Supabase SQL Editor para crear todas las tablas desde cero.
 -- =============================================================================
 
--- 1. UNIVERSIDADES
+-- 1. UNIVERSIDADES (soft delete: deleted_at no nulo = eliminado)
 CREATE TABLE IF NOT EXISTS universidades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 
 INSERT INTO universidades (nombre) VALUES
@@ -16,14 +17,15 @@ INSERT INTO universidades (nombre) VALUES
   ('EAFIT')
 ON CONFLICT (nombre) DO NOTHING;
 
--- 2. VENDEDORES (relación con universidad)
+-- 2. VENDEDORES (relación con universidad; soft delete: deleted_at no nulo = eliminado)
 CREATE TABLE IF NOT EXISTS vendedores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre TEXT NOT NULL UNIQUE,
   universidad_id UUID NOT NULL REFERENCES universidades(id) ON DELETE RESTRICT,
   telefono TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_vendedores_universidad ON vendedores(universidad_id);
@@ -96,6 +98,9 @@ ALTER TABLE ventas ENABLE ROW LEVEL SECURITY;
 
 -- 8. Políticas
 CREATE POLICY "Lectura universidades" ON universidades FOR SELECT USING (true);
+CREATE POLICY "Insertar universidades" ON universidades FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualizar universidades" ON universidades FOR UPDATE USING (true);
+CREATE POLICY "Eliminar universidades" ON universidades FOR DELETE USING (true);
 CREATE POLICY "Lectura vendedores" ON vendedores FOR SELECT USING (true);
 CREATE POLICY "Insertar vendedores" ON vendedores FOR INSERT WITH CHECK (true);
 CREATE POLICY "Actualizar vendedores" ON vendedores FOR UPDATE USING (true);

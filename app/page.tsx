@@ -15,7 +15,7 @@ type Tab = 'nueva' | 'historial' | 'mensual' | 'gestion'
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>('nueva')
   const [refreshKey, setRefreshKey] = useState(0)
-  const { config, vendedores, setConfig, addVendedor, removeVendedor, isLoaded } = useConfigSheets()
+  const { config, vendedores, universidades, setConfig, addVendedor, removeVendedor, addUniversidad, removeUniversidad, isLoaded } = useConfigSheets()
 
   const handleVentaRegistrada = () => {
     setRefreshKey((k) => k + 1)
@@ -69,9 +69,12 @@ export default function HomePage() {
           <GestionNegocio
             config={config}
             vendedores={vendedores}
+            universidades={universidades}
             onConfigChange={setConfig}
             onAddVendedor={addVendedor}
             onRemoveVendedor={removeVendedor}
+            onAddUniversidad={addUniversidad}
+            onRemoveUniversidad={removeUniversidad}
           />
         )}
       </main>
